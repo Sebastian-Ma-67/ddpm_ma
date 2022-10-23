@@ -70,10 +70,15 @@ def eval(modelConfig: Dict):
     # load model and evaluate
     with torch.no_grad():
         device = torch.device(modelConfig["device"])
-        model = UNet(T=modelConfig["T"], ch=modelConfig["channel"], ch_mult=modelConfig["channel_mult"], attn=modelConfig["attn"],
-                     num_res_blocks=modelConfig["num_res_blocks"], dropout=0.)
+        model = UNet(T=modelConfig["T"], 
+                     ch=modelConfig["channel"], 
+                     ch_mult=modelConfig["channel_mult"], 
+                     attn=modelConfig["attn"],
+                     num_res_blocks=modelConfig["num_res_blocks"], 
+                     dropout=0.)
         ckpt = torch.load(os.path.join(
-            modelConfig["save_weight_dir"], modelConfig["test_load_weight"]), map_location=device)
+            modelConfig["save_weight_dir"], 
+            modelConfig["test_load_weight"]), map_location=device)
         model.load_state_dict(ckpt)
         print("model load weight done.")
         model.eval()
@@ -81,7 +86,7 @@ def eval(modelConfig: Dict):
             model, modelConfig["beta_1"], modelConfig["beta_T"], modelConfig["T"]).to(device)
         # Sampled from standard normal distribution
         noisyImage = torch.randn(
-            size=[modelConfig["batch_size"], 3, 32, 32], device=device)
+            size=[modelConfig["batch_size"], 3, 32, 32], device=device) # [-1 ~ 1]
         saveNoisy = torch.clamp(noisyImage * 0.5 + 0.5, 0, 1)
         save_image(saveNoisy, os.path.join(
             modelConfig["sampled_dir"], modelConfig["sampledNoisyImgName"]), nrow=modelConfig["nrow"])

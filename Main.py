@@ -4,8 +4,9 @@ from Diffusion.Train import train, eval
 def main(model_config = None):
     modelConfig = {
         "state": "train", # or eval
+        # "state": "eval", # or eval
         "epoch": 200,
-        "batch_size": 80,
+        "batch_size": 2,
         "T": 1000,
         "channel": 128,
         "channel_mult": [1, 2, 3, 4],

@@ -56,12 +56,14 @@ class GaussianDiffusionSampler(nn.Module):
 
         self.register_buffer('betas', torch.linspace(beta_1, beta_T, T).double())
         alphas = 1. - self.betas
-        alphas_bar = torch.cumprod(alphas, dim=0)
-        alphas_bar_prev = F.pad(alphas_bar, [1, 0], value=1)[:T]
+        alphas_bar = torch.cumprod(alphas, dim=0) # y_{i} = x_{1} * x_{2} * … * x_{i} , 注意，输出维度与输入维度相同。
+        alphas_bar_prev = F.pad(alphas_bar, [1, 0], value=1)[:T] # F.pad: tensor扩充函数, 扩充完之后，截取前面 T 个元素
 
-        self.register_buffer('coeff1', torch.sqrt(1. / alphas))
+        # 下面两个是 \tilde{\mu}_t 式子的两个系数 （当然，这里是该式子的一系列系数）
+        self.register_buffer('coeff1', torch.sqrt(1. / alphas)) # 将一些常量储存在 buffer 里面。  
         self.register_buffer('coeff2', self.coeff1 * (1. - alphas) / torch.sqrt(1. - alphas_bar))
 
+        # 下面这个是 \tilde{\beta}_t 的值 （当然，这里是一系列的该值）
         self.register_buffer('posterior_var', self.betas * (1. - alphas_bar_prev) / (1. - alphas_bar))
 
     def predict_xt_prev_mean_from_eps(self, x_t, t, eps):
@@ -71,13 +73,13 @@ class GaussianDiffusionSampler(nn.Module):
             extract(self.coeff2, t, x_t.shape) * eps
         )
 
-    def p_mean_variance(self, x_t, t):
+    def p_mean_variance(self, x_t, t): # 下面的 posterior_var 好像就只是用到了 idx=1 的元素，其他元素都没用到诶
         # below: only log_variance is used in the KL computations
-        var = torch.cat([self.posterior_var[1:2], self.betas[1:]])
+        var = torch.cat([self.posterior_var[1:2], self.betas[1:]]) # 这里为什么这样 concat 呢？ 这里为什么不用 buffer 来代替呢？
         var = extract(var, t, x_t.shape)
 
         eps = self.model(x_t, t)
-        xt_prev_mean = self.predict_xt_prev_mean_from_eps(x_t, t, eps=eps)
+        xt_prev_mean = self.predict_xt_prev_mean_from_eps(x_t, t, eps=eps) # 预测的 x_{t-1} 的均值，在这里是直接用公式计算
 
         return xt_prev_mean, var
 
@@ -86,10 +88,10 @@ class GaussianDiffusionSampler(nn.Module):
         Algorithm 2.
         """
         x_t = x_T
-        for time_step in reversed(range(self.T)):
+        for time_step in reversed(range(self.T)): # reversed 返回一个反转的迭代器
             print(time_step)
-            t = x_t.new_ones([x_T.shape[0], ], dtype=torch.long) * time_step
-            mean, var= self.p_mean_variance(x_t=x_t, t=t)
+            t = x_t.new_ones([x_T.shape[0], ], dtype=torch.long) * time_step # 返回一个与size大小相同的，且用1填充的张量，这里实际是 batch_size 个 time_step 组成的一个数组。
+            mean, var= self.p_mean_variance(x_t=x_t, t=t) # 这里的 mean 指的是预测的 x_{t-1} 的均值，var 其实就是之前设定的 x_{t-1} 的 方差
             # no noise when t == 0
             if time_step > 0:
                 noise = torch.randn_like(x_t)
