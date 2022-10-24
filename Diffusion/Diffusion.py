@@ -12,7 +12,7 @@ def extract(v, t, x_shape):
     [batch_size, 1, 1, 1, 1, ...] for broadcasting purposes.
     """
     device = t.device
-    out = torch.gather(v, index=t, dim=0).float().to(device)
+    out = torch.gather(v, index=t, dim=0).float().to(device) # https://zhuanlan.zhihu.com/p/352877584
     return out.view([t.shape[0]] + [1] * (len(x_shape) - 1))
 
 
@@ -22,7 +22,8 @@ class GaussianDiffusionTrainer(nn.Module):
 
         self.model = model
         self.T = T
-
+        
+        # https://blog.csdn.net/weixin_38145317/article/details/104917218
         self.register_buffer(
             'betas', torch.linspace(beta_1, beta_T, T).double())
         alphas = 1. - self.betas
@@ -57,7 +58,7 @@ class GaussianDiffusionSampler(nn.Module):
         self.register_buffer('betas', torch.linspace(beta_1, beta_T, T).double())
         alphas = 1. - self.betas
         alphas_bar = torch.cumprod(alphas, dim=0) # y_{i} = x_{1} * x_{2} * … * x_{i} , 注意，输出维度与输入维度相同。
-        alphas_bar_prev = F.pad(alphas_bar, [1, 0], value=1)[:T] # F.pad: tensor扩充函数, 扩充完之后，截取前面 T 个元素
+        alphas_bar_prev = F.pad(alphas_bar, [1, 0], value=1)[:T] # F.pad: tensor扩充函数, 扩充完之后，截取前面 T 个元素。https://blog.csdn.net/jorg_zhao/article/details/105295686
 
         # 下面两个是 \tilde{\mu}_t 式子的两个系数 （当然，这里是该式子的一系列系数）
         self.register_buffer('coeff1', torch.sqrt(1. / alphas)) # 将一些常量储存在 buffer 里面。  

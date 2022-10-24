@@ -29,17 +29,29 @@ def train(modelConfig: Dict):
         dataset, batch_size=modelConfig["batch_size"], shuffle=True, num_workers=4, drop_last=True, pin_memory=True)
 
     # model setup
-    net_model = UNet(T=modelConfig["T"], ch=modelConfig["channel"], ch_mult=modelConfig["channel_mult"], attn=modelConfig["attn"],
-                     num_res_blocks=modelConfig["num_res_blocks"], dropout=modelConfig["dropout"]).to(device)
+    net_model = UNet(T=modelConfig["T"], 
+                     ch=modelConfig["channel"], 
+                     ch_mult=modelConfig["channel_mult"], 
+                     attn=modelConfig["attn"],
+                     num_res_blocks=modelConfig["num_res_blocks"], 
+                     dropout=modelConfig["dropout"] ).to(device)
     if modelConfig["training_load_weight"] is not None:
         net_model.load_state_dict(torch.load(os.path.join(
             modelConfig["save_weight_dir"], modelConfig["training_load_weight"]), map_location=device))
+    
+    # 优化器
     optimizer = torch.optim.AdamW(
         net_model.parameters(), lr=modelConfig["lr"], weight_decay=1e-4)
+    
+    # 学习率策略 https://blog.csdn.net/weixin_44682222/article/details/122218046
     cosineScheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer=optimizer, T_max=modelConfig["epoch"], eta_min=0, last_epoch=-1)
+    
+    # 学习率预热
     warmUpScheduler = GradualWarmupScheduler(
         optimizer=optimizer, multiplier=modelConfig["multiplier"], warm_epoch=modelConfig["epoch"] // 10, after_scheduler=cosineScheduler)
+    
+    # 训练器
     trainer = GaussianDiffusionTrainer(
         net_model, modelConfig["beta_1"], modelConfig["beta_T"], modelConfig["T"]).to(device)
 
@@ -50,18 +62,32 @@ def train(modelConfig: Dict):
                 # train
                 optimizer.zero_grad()
                 x_0 = images.to(device)
-                loss = trainer(x_0).sum() / 1000.
+                
+                # 前向传播，计算梯度
+                loss = trainer(x_0).sum() / 1000. # 这里为什么要除以 1000 呢？
+                
+                # 反向传播计算梯度
                 loss.backward()
+                
+                # 梯度裁剪（通过设定阈值来解决梯度消失或梯度爆炸的问题）https://blog.csdn.net/Mikeyboi/article/details/119522689
                 torch.nn.utils.clip_grad_norm_(
-                    net_model.parameters(), modelConfig["grad_clip"])
+                    net_model.parameters(), modelConfig["grad_clip_max_norm"])
+                
+                # 参数更新
                 optimizer.step()
+                
+                # log msg output
                 tqdmDataLoader.set_postfix(ordered_dict={
                     "epoch": e,
                     "loss: ": loss.item(),
                     "img shape: ": x_0.shape,
                     "LR": optimizer.state_dict()['param_groups'][0]["lr"]
                 })
-        warmUpScheduler.step()
+        
+        # 没明白是怎么回事
+        warmUpScheduler.step() 
+        
+        # 保存 check_point
         torch.save(net_model.state_dict(), os.path.join(
             modelConfig["save_weight_dir"], 'ckpt_' + str(e) + "_.pt"))
 

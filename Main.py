@@ -6,7 +6,7 @@ def main(model_config = None):
         "state": "train", # or eval
         # "state": "eval", # or eval
         "epoch": 200,
-        "batch_size": 2,
+        "batch_size": 250,
         "T": 1000,
         "channel": 128,
         "channel_mult": [1, 2, 3, 4],
@@ -18,7 +18,7 @@ def main(model_config = None):
         "beta_1": 1e-4,
         "beta_T": 0.02,
         "img_size": 32,
-        "grad_clip": 1.,
+        "grad_clip_max_norm": 1.,
         "device": "cuda:1",
         "training_load_weight": None,
         "save_weight_dir": "./Checkpoints/",

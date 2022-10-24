@@ -34,6 +34,7 @@ class TimeEmbedding(nn.Module):
         self.initialize()
 
     def initialize(self):
+        # Linear 模块的参数初始化
         for module in self.modules():
             if isinstance(module, nn.Linear):
                 init.xavier_uniform_(module.weight)
@@ -162,9 +163,17 @@ class ResBlock(nn.Module):
 
 class UNet(nn.Module):
     def __init__(self, T, ch, ch_mult, attn, num_res_blocks, dropout):
+        """
+        T: Time step
+        ch: channel
+        ch_mult: channel mult
+        attn: 
+        num_res_blocks:
+        dropout:
+        """
         super().__init__()
         assert all([i < len(ch_mult) for i in attn]), 'attn index out of bound'
-        tdim = ch * 4
+        tdim = ch * 4 # ch = 128, tdim = 512
         self.time_embedding = TimeEmbedding(T, ch, tdim)
 
         self.head = nn.Conv2d(3, ch, kernel_size=3, stride=1, padding=1)
@@ -237,10 +246,12 @@ class UNet(nn.Module):
 
 
 if __name__ == '__main__':
+    # for test
     batch_size = 8
     model = UNet(
         T=1000, ch=128, ch_mult=[1, 2, 2, 2], attn=[1],
         num_res_blocks=2, dropout=0.1)
+    
     x = torch.randn(batch_size, 3, 32, 32)
     t = torch.randint(1000, (batch_size, ))
     y = model(x, t)
