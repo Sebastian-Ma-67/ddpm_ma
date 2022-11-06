@@ -14,19 +14,19 @@ class Swish(nn.Module):
 
 class TimeEmbedding(nn.Module):
     def __init__(self, T, d_model, dim):
-        assert d_model % 2 == 0
+        assert d_model % 2 == 0 # 首先判断是不是2的指数，这里的 d_model = 128
         super().__init__()
-        emb = torch.arange(0, d_model, step=2) / d_model * math.log(10000)
-        emb = torch.exp(-emb)
+        emb = torch.arange(0, d_model, step=2) / d_model * math.log(10000) # math.log(10000) = 9.210340371976184
+        emb = torch.exp(-emb) # 
         pos = torch.arange(T).float()
-        emb = pos[:, None] * emb[None, :]
+        emb = pos[:, None] * emb[None, :] # 
         assert list(emb.shape) == [T, d_model // 2]
         emb = torch.stack([torch.sin(emb), torch.cos(emb)], dim=-1)
         assert list(emb.shape) == [T, d_model // 2, 2]
         emb = emb.view(T, d_model)
 
         self.timembedding = nn.Sequential(
-            nn.Embedding.from_pretrained(emb),
+            nn.Embedding.from_pretrained(emb), # Creates Embedding instance from given 2-dimensional FloatTensor. https://pytorch.org/docs/stable/generated/torch.nn.Embedding.html
             nn.Linear(d_model, dim),
             Swish(),
             nn.Linear(dim, dim),
@@ -63,7 +63,7 @@ class DownSample(nn.Module):
 class UpSample(nn.Module):
     def __init__(self, in_ch):
         super().__init__()
-        self.main = nn.Conv2d(in_ch, in_ch, 3, stride=1, padding=1)
+        self.main = nn.Conv2d(in_channels=in_ch, out_channels=in_ch, kernel_size=3, stride=1, padding=1)
         self.initialize()
 
     def initialize(self):
@@ -137,7 +137,7 @@ class ResBlock(nn.Module):
         if in_ch != out_ch:
             self.shortcut = nn.Conv2d(in_ch, out_ch, 1, stride=1, padding=0)
         else:
-            self.shortcut = nn.Identity()
+            self.shortcut = nn.Identity() # 这个网络层的设计是用于占位的，即不干活，只是有这么一个层，放到残差网络里就是:在跳过连接的地方用这个层，显得没有那么空虚！
         if attn:
             self.attn = AttnBlock(out_ch)
         else:
@@ -174,9 +174,14 @@ class UNet(nn.Module):
         super().__init__()
         assert all([i < len(ch_mult) for i in attn]), 'attn index out of bound'
         tdim = ch * 4 # ch = 128, tdim = 512
+        
+        # 0. Timestep embedding
         self.time_embedding = TimeEmbedding(T, ch, tdim)
 
+        # 1. head
         self.head = nn.Conv2d(3, ch, kernel_size=3, stride=1, padding=1)
+        
+        # 2. Downsampling
         self.downblocks = nn.ModuleList()
         chs = [ch]  # record output channel when dowmsample for upsample
         now_ch = ch
@@ -192,11 +197,13 @@ class UNet(nn.Module):
                 self.downblocks.append(DownSample(now_ch))
                 chs.append(now_ch)
 
+        # 3. Middle
         self.middleblocks = nn.ModuleList([
             ResBlock(now_ch, now_ch, tdim, dropout, attn=True),
             ResBlock(now_ch, now_ch, tdim, dropout, attn=False),
         ])
 
+        # 4. Upsampling
         self.upblocks = nn.ModuleList()
         for i, mult in reversed(list(enumerate(ch_mult))):
             out_ch = ch * mult
@@ -209,10 +216,11 @@ class UNet(nn.Module):
                 self.upblocks.append(UpSample(now_ch))
         assert len(chs) == 0
 
+        # 5. tail
         self.tail = nn.Sequential(
             nn.GroupNorm(32, now_ch),
             Swish(),
-            nn.Conv2d(now_ch, 3, 3, stride=1, padding=1)
+            nn.Conv2d(in_channels=now_ch, out_channels=3, kernel_size=3, stride=1, padding=1)
         )
         self.initialize()
 
@@ -225,20 +233,24 @@ class UNet(nn.Module):
     def forward(self, x, t):
         # Timestep embedding
         temb = self.time_embedding(t)
+        
         # Downsampling
         h = self.head(x)
         hs = [h]
         for layer in self.downblocks:
             h = layer(h, temb)
             hs.append(h)
+        
         # Middle
         for layer in self.middleblocks:
             h = layer(h, temb)
+        
         # Upsampling
         for layer in self.upblocks:
             if isinstance(layer, ResBlock):
                 h = torch.cat([h, hs.pop()], dim=1)
             h = layer(h, temb)
+        
         h = self.tail(h)
 
         assert len(hs) == 0

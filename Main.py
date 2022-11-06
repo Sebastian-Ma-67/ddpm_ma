@@ -3,12 +3,12 @@ from Diffusion.Train import train, eval
 
 def main(model_config = None):
     modelConfig = {
-        "state": "train", # or eval
-        # "state": "eval", # or eval
+        # "state": "train", # or eval
+        "state": "eval", # or eval
         "epoch": 200,
-        "batch_size": 250,
+        "batch_size": 1,
         "T": 1000,
-        "channel": 128,
+        "channel": 128, # 
         "channel_mult": [1, 2, 3, 4],
         "attn": [2],
         "num_res_blocks": 2,
@@ -28,8 +28,10 @@ def main(model_config = None):
         "sampledImgName": "SampledNoGuidenceImgs.png",
         "nrow": 8
         }
+    
     if model_config is not None:
         modelConfig = model_config
+    
     if modelConfig["state"] == "train":
         train(modelConfig)
     else:

@@ -91,15 +91,23 @@ class GaussianDiffusionSampler(nn.Module):
         x_t = x_T
         for time_step in reversed(range(self.T)): # reversed 返回一个反转的迭代器
             print(time_step)
-            t = x_t.new_ones([x_T.shape[0], ], dtype=torch.long) * time_step # 返回一个与size大小相同的，且用1填充的张量，这里实际是 batch_size 个 time_step 组成的一个数组。
-            mean, var= self.p_mean_variance(x_t=x_t, t=t) # 这里的 mean 指的是预测的 x_{t-1} 的均值，var 其实就是之前设定的 x_{t-1} 的 方差
-            # no noise when t == 0
+            
+            # 返回一个与size大小相同的，且用 1 填充的张量，这里实际是 batch_size 个 time_step 组成的一个数组。
+            t = x_t.new_ones([x_T.shape[0], ], dtype=torch.long) * time_step
+            
+            # 这里的 mean 指的是预测的 x_{t-1} 的均值，而 var 其实就是之前设定的 x_{t-1} 的 方差
+            mean, var= self.p_mean_variance(x_t=x_t, t=t) 
+            
+            # no noise when time_step == 0
             if time_step > 0:
                 noise = torch.randn_like(x_t)
             else:
                 noise = 0
+            
             x_t = mean + torch.sqrt(var) * noise
+            
             assert torch.isnan(x_t).int().sum() == 0, "nan in tensor."
+        
         x_0 = x_t
         return torch.clip(x_0, -1, 1)   
 
