@@ -4,6 +4,7 @@ from DiffusionFreeGuidence.TrainCondition import train, eval
 def main(model_config=None):
     modelConfig = {
         "state": "train", # or eval
+        # "state": "eval", # or eval
         "epoch": 70,
         "batch_size": 80,
         "T": 500,
@@ -17,7 +18,7 @@ def main(model_config=None):
         "beta_T": 0.028,
         "img_size": 32,
         "grad_clip": 1.,
-        "device": "cuda:0",
+        "device": "cuda:1",
         "w": 1.8,
         "save_dir": "./CheckpointsCondition/",
         "training_load_weight": None,
