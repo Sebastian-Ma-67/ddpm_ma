@@ -17,6 +17,7 @@ from Scheduler import GradualWarmupScheduler
 
 def train(modelConfig: Dict):
     device = torch.device(modelConfig["device"])
+    
     # dataset
     dataset = CIFAR10(
         root='./CIFAR10', train=True, download=True,
@@ -35,9 +36,14 @@ def train(modelConfig: Dict):
                      attn=modelConfig["attn"],
                      num_res_blocks=modelConfig["num_res_blocks"], 
                      dropout=modelConfig["dropout"] ).to(device)
+    
     if modelConfig["training_load_weight"] is not None:
-        net_model.load_state_dict(torch.load(os.path.join(
-            modelConfig["save_weight_dir"], modelConfig["training_load_weight"]), map_location=device))
+        net_model.load_state_dict(
+            torch.load(
+                os.path.join(
+                    modelConfig["save_weight_dir"], 
+                    modelConfig["training_load_weight"]), 
+                map_location=device))
     
     # 优化器
     optimizer = torch.optim.AdamW(
@@ -45,15 +51,24 @@ def train(modelConfig: Dict):
     
     # 学习率策略 https://blog.csdn.net/weixin_44682222/article/details/122218046
     cosineScheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer=optimizer, T_max=modelConfig["epoch"], eta_min=0, last_epoch=-1)
+        optimizer=optimizer, 
+        T_max=modelConfig["epoch"], 
+        eta_min=0, 
+        last_epoch=-1)
     
     # 学习率预热
     warmUpScheduler = GradualWarmupScheduler(
-        optimizer=optimizer, multiplier=modelConfig["multiplier"], warm_epoch=modelConfig["epoch"] // 10, after_scheduler=cosineScheduler)
+        optimizer=optimizer, 
+        multiplier=modelConfig["multiplier"], 
+        warm_epoch=modelConfig["epoch"] // 10, 
+        after_scheduler=cosineScheduler)
     
     # 训练器
     trainer = GaussianDiffusionTrainer(
-        net_model, modelConfig["beta_1"], modelConfig["beta_T"], modelConfig["T"]).to(device)
+        net_model, 
+        modelConfig["beta_1"], 
+        modelConfig["beta_T"], 
+        modelConfig["T"]).to(device)
 
     # start training
     for e in range(modelConfig["epoch"]):
@@ -96,15 +111,21 @@ def eval(modelConfig: Dict):
     # load model and evaluate
     with torch.no_grad():
         device = torch.device(modelConfig["device"])
-        model = UNet(T=modelConfig["T"], 
-                     ch=modelConfig["channel"], 
-                     ch_mult=modelConfig["channel_mult"], 
-                     attn=modelConfig["attn"],
-                     num_res_blocks=modelConfig["num_res_blocks"], 
-                     dropout=0.)
-        ckpt = torch.load(os.path.join(
-            modelConfig["save_weight_dir"], 
-            modelConfig["test_load_weight"]), map_location=device)
+        
+        model = UNet(
+            T=modelConfig["T"], 
+            ch=modelConfig["channel"], 
+            ch_mult=modelConfig["channel_mult"], 
+            attn=modelConfig["attn"],
+            num_res_blocks=modelConfig["num_res_blocks"], 
+            dropout=0.)
+        
+        ckpt = torch.load(
+            os.path.join(modelConfig["save_weight_dir"], 
+                         modelConfig["test_load_weight"]), 
+            map_location=device)
+        
+        # 将训练好的模型加载进来
         model.load_state_dict(ckpt)
         print("model load weight done.")
         
@@ -126,7 +147,8 @@ def eval(modelConfig: Dict):
         saveNoisy = torch.clamp(noisyImage * 0.5 + 0.5, 0, 1)
         save_image(
             saveNoisy, 
-            os.path.join(modelConfig["sampled_dir"], modelConfig["sampledNoisyImgName"]), 
+            os.path.join(modelConfig["sampled_dir"], 
+                         modelConfig["sampledNoisyImgName"]), 
             nrow=modelConfig["nrow"])
         
         # 将 noisyImage 输入到模型中进行计算和采样
@@ -136,5 +158,6 @@ def eval(modelConfig: Dict):
         # 将采样得到的 image 保存下来
         save_image(
             sampledImgs, 
-            os.path.join(modelConfig["sampled_dir"],  modelConfig["sampledImgName"]), 
+            os.path.join(modelConfig["sampled_dir"],  
+                         modelConfig["sampledImgName"]), 
             nrow=modelConfig["nrow"])

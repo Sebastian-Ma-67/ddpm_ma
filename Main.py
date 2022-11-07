@@ -3,10 +3,10 @@ from Diffusion.Train import train, eval
 
 def main(model_config = None):
     modelConfig = {
-        # "state": "train", # or eval
-        "state": "eval", # or eval
+        "state": "train", # or eval
+        # "state": "eval", # or eval
         "epoch": 200,
-        "batch_size": 1,
+        "batch_size": 250,
         "T": 1000,
         "channel": 128, # 
         "channel_mult": [1, 2, 3, 4],
@@ -15,17 +15,21 @@ def main(model_config = None):
         "dropout": 0.15,
         "lr": 1e-4,
         "multiplier": 2.,
+        
         "beta_1": 1e-4,
         "beta_T": 0.02,
+        
         "img_size": 32,
         "grad_clip_max_norm": 1.,
-        "device": "cuda:1",
+        "device": "cuda:2",
         "training_load_weight": None,
+        
         "save_weight_dir": "./Checkpoints/",
         "test_load_weight": "ckpt_199_.pt",
+        
         "sampled_dir": "./SampledImgs/",
-        "sampledNoisyImgName": "NoisyNoGuidenceImgs.png",
-        "sampledImgName": "SampledNoGuidenceImgs.png",
+        "sampledNoisyImgName": "gen_NoisyImgs.png",
+        "sampledImgName": "gen_SampledImgs.png",
         "nrow": 8
         }
     

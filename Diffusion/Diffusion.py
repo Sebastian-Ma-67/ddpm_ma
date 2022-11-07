@@ -66,6 +66,10 @@ class GaussianDiffusionSampler(nn.Module):
 
         # 下面这个是 \tilde{\beta}_t 的值 （当然，这里是一系列的该值）
         self.register_buffer('posterior_var', self.betas * (1. - alphas_bar_prev) / (1. - alphas_bar))
+        
+        # for test
+        self.register_buffer('var', torch.cat([self.posterior_var[1:2], self.betas[1:]]) )
+
 
     def predict_xt_prev_mean_from_eps(self, x_t, t, eps):
         assert x_t.shape == eps.shape
@@ -76,12 +80,13 @@ class GaussianDiffusionSampler(nn.Module):
 
     def p_mean_variance(self, x_t, t): # 下面的 posterior_var 好像就只是用到了 idx=1 的元素，其他元素都没用到诶
         # below: only log_variance is used in the KL computations
-        var = torch.cat([self.posterior_var[1:2], self.betas[1:]]) # 这里为什么这样 concat 呢？ 这里为什么不用 buffer 来代替呢？
+        var = torch.cat([self.posterior_var[1:2], self.betas[1:]]) # 这里为什么这样 concat 呢？ 这里为什么不用 buffer 来代替呢？作者给的回复是，这里的 var 和 betas 类似，即使代替也不影响
+        
         var = extract(var, t, x_t.shape)
 
         eps = self.model(x_t, t)
         xt_prev_mean = self.predict_xt_prev_mean_from_eps(x_t, t, eps=eps) # 预测的 x_{t-1} 的均值，在这里是直接用公式计算
-
+        
         return xt_prev_mean, var
 
     def forward(self, x_T):
