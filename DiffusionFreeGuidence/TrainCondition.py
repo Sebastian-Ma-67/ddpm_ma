@@ -119,7 +119,7 @@ def eval(modelConfig: Dict):
             if i % step == 0:
                 if k < 10 - 1:
                     k += 1
-                    
+                       
         # 根据 labelList 得到 labels
         labels = torch.cat(labelList, dim=0).long().to(device) + 1
         print("labels: ", labels)
@@ -177,3 +177,71 @@ def eval(modelConfig: Dict):
                 modelConfig["sampled_dir"], 
                 modelConfig["sampledImgName"]), 
             nrow=modelConfig["nrow"])
+        
+        
+def eval_gen(modelConfig: Dict):
+    device = torch.device(modelConfig["device"])
+    
+    # load model and evaluate
+    with torch.no_grad():
+        step = int(modelConfig["batch_size"] // 10)
+
+        labelList = []
+
+        label = modelConfig["label"]
+        labelList.append(torch.ones( modelConfig["batch_size"]).long()*label)
+        
+                    
+        # 根据 labelList 得到 labels
+        labels = torch.cat(labelList, dim=0).long().to(device) + 1
+        print("labels: ", labels)
+        
+        model = UNet(
+            T=modelConfig["T"], 
+            num_labels=10, 
+            ch=modelConfig["channel"], 
+            ch_mult=modelConfig["channel_mult"],
+            num_res_blocks=modelConfig["num_res_blocks"], 
+            dropout=modelConfig["dropout"]).to(device)
+        
+        ckpt = torch.load(
+            os.path.join(
+                modelConfig["save_dir"], 
+                modelConfig["test_load_weight"]), 
+            map_location=device)
+        
+        model.load_state_dict(ckpt)
+        print("model load weight done.")
+        
+        model.eval()
+        
+        sampler = GaussianDiffusionSampler(
+            model, 
+            modelConfig["beta_1"], 
+            modelConfig["beta_T"], 
+            modelConfig["T"], 
+            w=modelConfig["w"]).to(device)
+        
+        # Sampled from standard normal distribution
+        noisyImage = torch.randn(
+            size=[modelConfig["batch_size"], 
+                  3, 
+                  modelConfig["img_size"], 
+                  modelConfig["img_size"]], 
+            device=device)
+        
+        sampledImgs = sampler(noisyImage, labels)
+        sampledImgs = sampledImgs * 0.5 + 0.5  # [0 ~ 1]
+
+        # Add 0.5 after unnormalizing to [0, 255] to round to nearest integer        
+        ndarr = sampledImgs.mul(255).add_(0.5).clamp_(0, 255).permute(0, 2, 3, 1).to("cpu", torch.uint8).numpy()
+        for i in range (modelConfig["batch_size"]):
+            tmp_img =  ndarr[i]
+            im = Image.fromarray(tmp_img)
+            
+            dir_path =  modelConfig["sample_gen_dir"] + str(label)
+            if not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+            
+            fp = dir_path+"/"+str(modelConfig["test_iter"])+"_"+str(i)+".png"
+            im.save(fp)
