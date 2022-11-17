@@ -1,1 +1,1 @@
-CUDA_VISIBLE_DEVICES=0,1,2,3  python -m pytorch_fid ./test/0 ./train/truck --dims 2048 --gpu 3
+python -m pytorch_fid ./test/0 ./train/airp --dims 2048 --gpu 3
